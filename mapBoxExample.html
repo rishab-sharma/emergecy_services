@@ -1,0 +1,100 @@
+<!doctype html>
+<html class="no-js">
+  <head>
+    <meta charset="utf-8">
+    <title>MapBox Example</title>
+    <meta name="description" content="">
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
+    <script src="http://cdn.pubnub.com/pubnub-3.7.1.min.js"></script>
+    <script src='https://api.tiles.mapbox.com/mapbox.js/v2.1.4/mapbox.js'></script>
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css">
+    <link href='https://api.tiles.mapbox.com/mapbox.js/v2.1.4/mapbox.css' rel='stylesheet' />
+
+    <style>
+      html, body, #map {
+        height: 700px;
+        margin: 0px;
+        padding: 0px
+      }
+    </style>
+
+  </head>
+  <body>
+    <div class="container"><h1>PubNub MapBox Example</h1></div>
+    <div id="map"></div>
+    <br>
+    <div class="container"><a href="/">Broadcast Page (Home)</a></div>
+  <script>
+    var lat = null;
+    var lng = null;
+
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(function(position) { 
+        var locationMarker = null;
+        if (locationMarker){
+          // return if there is a locationMarker bug
+          return;
+        }
+
+        // sets default position to your position
+        lat = position.coords["latitude"];
+        lng = position.coords["longitude"];
+
+        // calls PubNub
+        pubs();
+        // calls main method
+        main();
+      },
+      function(error) {
+        console.log("Error: ", error);
+      },
+      {
+        enableHighAccuracy: true
+      }
+      );
+    }   
+
+    function pubs() {
+      pubnub = PUBNUB.init({
+        publish_key: 'demo',
+        subscribe_key: 'demo'
+      })
+      pubnub.subscribe({
+        channel: "mymaps",
+        message: function(message, channel) {
+          console.log(message)
+          lat = message['lat'];
+          lng = message['lng'];
+          map.setView([lat, lng]);
+          map_line.addLatLng([lat,lng]);
+          marker.setLatLng(L.latLng(lat, lng));
+        },
+        connect: function() {console.log("pubnub connected")}
+      })
+    }
+
+    //allow pubs to see map_line polyline
+    var map_line;
+    var map;
+    var marker;
+
+    function main() {
+      // Provide your access token
+      L.mapbox.accessToken = 'YOUR_KEY';
+      // Create a map in the div #map
+      map = L.mapbox.map('map', 'YOUR_MAP');
+      map.setView([lat, lng], 17);
+
+      marker = L.marker([lat, lng], {
+        icon: L.mapbox.marker.icon({
+          'marker-color': '#f86767'
+        })
+      });
+
+      map_line = L.polyline([], {color: 'blue'}).addTo(map);
+
+      marker.addTo(map);
+    }
+  </script>
+  </body>
+</html>

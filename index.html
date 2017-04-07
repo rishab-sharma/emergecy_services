@@ -1,0 +1,164 @@
+<!doctype html>
+<html class="no-js">
+  <head>
+    <meta charset="utf-8">
+    <title>Broadcast Example</title>
+    <meta name="description" content="">
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.3.5/angular.min.js"></script>
+    <script src="https://cdn.pubnub.com/pubnub.min.js"></script>
+    <script src="http://pubnub.github.io/angular-js/scripts/pubnub-angular.js"></script>
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css">
+    <script src="//js.maxmind.com/js/apis/geoip2/v2.1/geoip2.js" type="text/javascript"></script>
+  </head>
+  <body ng-app="broadcastApp">
+    <div ng-controller="BcCtrl">
+      <div class="container">
+        <h1>Ambulance Tracking Broadcast Page</h1>
+        <form class="form-horizontal">
+          <legend></legend>
+          <div class="form-group">
+            <label class="col-sm-2 control-label">Starting Coords</label>
+            <div class="col-sm-10">
+              <!-- Lat Start -->
+              <div class="col-sm-3 input-group">
+                <input type="number" class="form-control" ng-model="start_lat">
+                <div class="input-group-addon">latitude</div>
+              </div>
+            </div>
+          <!-- end form-group 1 -->
+          </div>
+          <div class="form-group">
+            <label class="col-sm-2 control-label"></label>
+            <div class="col-sm-10">
+              <!-- Long Start -->
+              <div class="col-sm-3 input-group">
+                <input type="number" class="form-control" ng-model="start_long">
+                <div class="input-group-addon">longitude</div>
+              </div>
+            </div>
+          </div>
+          <div class="form-group">
+            <!-- Lat Inc -->
+            <label class="col-sm-2 control-label">latitude increment</label>
+            <div class="col-sm-2">
+              <input type="" class="form-control" ng-model="lat_inc">
+            </div>
+          </div>
+          <div class="form-group">
+            <!-- Long Inc -->
+            <label class="col-sm-2 control-label">longitude increment</label>
+            <div class="col-sm-2">
+              <input type="" class="form-control" ng-model="long_inc">
+            </div>
+          </div>
+          <div class="form-group">
+            <!-- Delay -->
+            <label class="col-sm-2 control-label">delay (s)</label>
+            <div class="col-sm-2">
+              <input type="" class="form-control" ng-model="delay">
+            </div>
+          </div>
+          <div class="form-group">
+            <!-- Count -->
+            <label class="col-sm-2 control-label">count</label>
+            <div class="col-sm-2">
+              <input type="" class="form-control" ng-model="count">
+            </div>
+          </div>
+          <div class="form-group">
+            <!-- Start Btn -->
+            <label class="col-sm-2 control-label"></label> 
+            <div class="col-sm-2">
+              <br>
+              <a ng-disabled="isDisabled" class="btn btn-primary" ng-click="start()">Start</a>
+            </div>
+          </div>
+          </div>
+        </form>
+        <div class="container">
+          <a href="/gmapExample.html">Google Maps Example</a>
+          <br>
+          <a href="/mapBoxExample.html">MapBox Example</a>
+        </div>
+      </div>
+    </div>
+
+    <!--Broadcasting Example -->
+    <script>
+    angular.module('broadcastApp', ["pubnub.angular.service"])
+      .controller('BcCtrl', function ($rootScope, $scope, PubNub, $window) {
+        if (!$rootScope.initialized) {
+          PubNub.init({
+            subscribe_key: 'demo',
+            publish_key: 'demo',
+            uuid: '1234'
+          });
+          $rootScope.initialized = true;
+        }
+
+        if ($window.navigator.geolocation) {
+          $window.navigator.geolocation.getCurrentPosition(function(position) { 
+            var locationMarker = null;
+            if (locationMarker){
+              // return if there is a locationMarker bug
+                return;
+            }
+            $scope.mylat = position.coords["latitude"];
+            $scope.mylng = position.coords["longitude"];
+            $scope.$apply(mainFcn());
+          },
+          function(error) {
+            console.log("Error: ", error);
+          },
+          {
+            enableHighAccuracy: true
+          }
+          );
+        }
+
+        var mainFcn = function() {
+          $scope.start_lat = $scope.mylat; //starting location
+          $scope.start_long = $scope.mylng; // starting location
+          $scope.lat_inc = 0.001; // latitude incremental add
+          $scope.long_inc = 0.001; // longitude incremental add
+          $scope.delay = 1; // time delay between messages
+          $scope.count = 4; // number of messages
+          $scope.isDisabled = false;
+
+          $scope.start = function() {
+            $scope.coords = {"lat":$scope.start_lat, "lng":$scope.start_long, "alt":0 };
+            $scope.pnCall($scope.coords);
+          }
+
+          $scope.pnCall = function(coords) {
+            console.log(coords);
+            $scope.isDisabled = true; // disable the start button
+            PubNub.ngPublish({
+              channel: "mymaps",
+              message: coords,
+              callback: function(){setTimeout(function(){$scope.tracker(coords)},$scope.delay*1000)}
+            });
+          }
+
+          $scope.tracker = function(coords) {
+            var new_lng;
+            var new_lat;
+
+            if ($scope.count - 1 === 0) {
+              console.log("done");
+              $scope.$apply($scope.isDisabled = false);
+            } else {
+              new_lng = Number(coords["lng"]) + Number($scope.long_inc);
+              new_lat = Number(coords["lat"]) + Number($scope.lat_inc);
+              coords = {"lat":new_lat, "lng":new_lng, "alt":0 };
+              $scope.pnCall(coords); // call pnCall and send new coords
+              $scope.$apply($scope.count -= 1);
+            }
+          }
+        };
+
+      });
+    </script>
+  </body>
+</html>
